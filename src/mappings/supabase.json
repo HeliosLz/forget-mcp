@@ -1,0 +1,54 @@
+{
+  "$schema": "./schema.json",
+  "server_patterns": ["supabase", "@supabase/mcp-server-supabase", "supabase-mcp", "mcp.supabase.com"],
+  "classification": "tool-type",
+  "cli": {
+    "name": "psql",
+    "install": {
+      "darwin": "brew install postgresql",
+      "linux": "apt install postgresql-client",
+      "fallback": "npm i -g supabase"
+    },
+    "version_check": "psql --version"
+  },
+  "env_vars": [
+    { "name": "DATABASE_URL", "required": true, "description": "Postgres connection string (from Supabase dashboard > Settings > Database)" },
+    { "name": "SUPABASE_URL", "required": false, "description": "Supabase project URL (for edge functions)" },
+    { "name": "SUPABASE_SERVICE_ROLE_KEY", "required": false, "description": "Service role key (for edge functions and API calls)" }
+  ],
+  "tools": {
+    "execute_sql": {
+      "subcommand": "query",
+      "args": ["sql"],
+      "output_format": "csv",
+      "guidance": "Add LIMIT N to large queries to avoid context overflow"
+    },
+    "list_tables": {
+      "subcommand": "tables",
+      "args": [],
+      "output_format": "csv"
+    },
+    "get_table_schema": {
+      "subcommand": "schema",
+      "args": ["table"],
+      "output_format": "text"
+    },
+    "list_extensions": {
+      "subcommand": "extensions",
+      "args": [],
+      "output_format": "csv"
+    },
+    "list_migrations": {
+      "subcommand": "migrations",
+      "args": [],
+      "output_format": "csv"
+    },
+    "apply_migration": {
+      "subcommand": "migrate",
+      "args": ["sql"],
+      "guidance": "Pass the full SQL migration as a string"
+    }
+  },
+  "wrapper_template": "case \"${1:-}\" in\n  query)\n    [ -z \"${2:-}\" ] && { echo \"Usage: supabase.sh query <sql>\" >&2; exit 1; }\n    psql \"$DATABASE_URL\" --csv -c \"$2\" | head -n \"$MAX_LINES\"\n    ;;\n  tables)\n    psql \"$DATABASE_URL\" --csv -c \"SELECT table_schema, table_name, table_type FROM information_schema.tables WHERE table_schema NOT IN ('pg_catalog','information_schema') ORDER BY table_schema, table_name\" | head -n \"$MAX_LINES\"\n    ;;\n  schema)\n    [ -z \"${2:-}\" ] && { echo \"Usage: supabase.sh schema <table>\" >&2; exit 1; }\n    psql \"$DATABASE_URL\" --csv -c \"\\d $2\" | head -n \"$MAX_LINES\"\n    ;;\n  extensions)\n    psql \"$DATABASE_URL\" --csv -c \"SELECT extname, extversion FROM pg_extension ORDER BY extname\" | head -n \"$MAX_LINES\"\n    ;;\n  migrations)\n    psql \"$DATABASE_URL\" --csv -c \"SELECT * FROM supabase_migrations.schema_migrations ORDER BY version\" 2>/dev/null | head -n \"$MAX_LINES\" || echo \"No migrations table found\"\n    ;;\n  migrate)\n    [ -z \"${2:-}\" ] && { echo \"Usage: supabase.sh migrate <sql>\" >&2; exit 1; }\n    psql \"$DATABASE_URL\" -c \"$2\"\n    ;;",
+  "notes": "Multi-statement transactions require a single psql -f script.sql invocation. Edge function management (list, deploy) requires the Supabase CLI or API calls and is not covered by this mapping."
+}

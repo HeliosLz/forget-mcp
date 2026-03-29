@@ -1,0 +1,67 @@
+{
+  "$schema": "./schema.json",
+  "server_patterns": ["cloudflare", "@cloudflare/mcp-server-cloudflare", "cloudflare-mcp"],
+  "classification": "tool-type",
+  "cli": {
+    "name": "wrangler",
+    "install": {
+      "darwin": "npm i -g wrangler",
+      "linux": "npm i -g wrangler"
+    },
+    "version_check": "wrangler --version"
+  },
+  "env_vars": [
+    { "name": "CLOUDFLARE_API_TOKEN", "required": false, "description": "Cloudflare API token (or use `wrangler login`)" },
+    { "name": "CLOUDFLARE_ACCOUNT_ID", "required": false, "description": "Cloudflare account ID" }
+  ],
+  "tools": {
+    "workers_list": {
+      "subcommand": "workers",
+      "args": [],
+      "output_format": "text"
+    },
+    "kv_namespaces_list": {
+      "subcommand": "kv-ls",
+      "args": [],
+      "output_format": "text"
+    },
+    "kv_get": {
+      "subcommand": "kv-get",
+      "args": ["namespace_id", "key"],
+      "output_format": "text"
+    },
+    "kv_put": {
+      "subcommand": "kv-put",
+      "args": ["namespace_id", "key", "value"],
+      "guidance": "Writes a key-value pair to a KV namespace"
+    },
+    "r2_list_buckets": {
+      "subcommand": "r2-ls",
+      "args": [],
+      "output_format": "text"
+    },
+    "r2_list_objects": {
+      "subcommand": "r2-ls-bucket",
+      "args": ["bucket"],
+      "output_format": "text"
+    },
+    "d1_list_databases": {
+      "subcommand": "d1-ls",
+      "args": [],
+      "output_format": "text"
+    },
+    "d1_query": {
+      "subcommand": "d1-query",
+      "args": ["database", "sql"],
+      "output_format": "json",
+      "guidance": "Executes SQL against a D1 database. Add LIMIT for large results."
+    },
+    "dns_list_records": {
+      "subcommand": "dns-ls",
+      "args": ["zone_id"],
+      "output_format": "text"
+    }
+  },
+  "wrapper_template": "case \"${1:-}\" in\n  workers)\n    wrangler deployments list 2>/dev/null | head -n \"$MAX_LINES\" || curl -s -H \"Authorization: Bearer $CLOUDFLARE_API_TOKEN\" \"https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/workers/scripts\" | head -n \"$MAX_LINES\"\n    ;;\n  kv-ls)\n    wrangler kv namespace list 2>/dev/null | head -n \"$MAX_LINES\" || curl -s -H \"Authorization: Bearer $CLOUDFLARE_API_TOKEN\" \"https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/storage/kv/namespaces\" | head -n \"$MAX_LINES\"\n    ;;\n  kv-get)\n    [ -z \"${3:-}\" ] && { echo \"Usage: cloudflare.sh kv-get <namespace_id> <key>\" >&2; exit 1; }\n    wrangler kv key get --namespace-id=\"$2\" \"$3\" 2>/dev/null || curl -s -H \"Authorization: Bearer $CLOUDFLARE_API_TOKEN\" \"https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/storage/kv/namespaces/$2/values/$3\"\n    ;;\n  kv-put)\n    [ -z \"${4:-}\" ] && { echo \"Usage: cloudflare.sh kv-put <namespace_id> <key> <value>\" >&2; exit 1; }\n    wrangler kv key put --namespace-id=\"$2\" \"$3\" \"$4\" 2>/dev/null || curl -s -X PUT -H \"Authorization: Bearer $CLOUDFLARE_API_TOKEN\" -d \"$4\" \"https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/storage/kv/namespaces/$2/values/$3\"\n    ;;\n  r2-ls)\n    wrangler r2 bucket list 2>/dev/null | head -n \"$MAX_LINES\" || curl -s -H \"Authorization: Bearer $CLOUDFLARE_API_TOKEN\" \"https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/r2/buckets\" | head -n \"$MAX_LINES\"\n    ;;\n  r2-ls-bucket)\n    [ -z \"${2:-}\" ] && { echo \"Usage: cloudflare.sh r2-ls-bucket <bucket>\" >&2; exit 1; }\n    wrangler r2 object list \"$2\" 2>/dev/null | head -n \"$MAX_LINES\"\n    ;;\n  d1-ls)\n    wrangler d1 list 2>/dev/null | head -n \"$MAX_LINES\" || curl -s -H \"Authorization: Bearer $CLOUDFLARE_API_TOKEN\" \"https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/d1/database\" | head -n \"$MAX_LINES\"\n    ;;\n  d1-query)\n    [ -z \"${3:-}\" ] && { echo \"Usage: cloudflare.sh d1-query <database> <sql>\" >&2; exit 1; }\n    wrangler d1 execute \"$2\" --command=\"$3\" 2>/dev/null | head -n \"$MAX_LINES\"\n    ;;\n  dns-ls)\n    [ -z \"${2:-}\" ] && { echo \"Usage: cloudflare.sh dns-ls <zone_id>\" >&2; exit 1; }\n    curl -s -H \"Authorization: Bearer $CLOUDFLARE_API_TOKEN\" \"https://api.cloudflare.com/client/v4/zones/$2/dns_records\" | head -n \"$MAX_LINES\"\n    ;;",
+  "notes": "Wrangler must be authenticated: run `wrangler login` or set CLOUDFLARE_API_TOKEN. Some commands fall back to the Cloudflare API if wrangler is not available."
+}

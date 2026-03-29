@@ -1,0 +1,62 @@
+{
+  "$schema": "./schema.json",
+  "server_patterns": ["aws", "@aws/mcp-server", "awslabs", "aws-mcp"],
+  "classification": "tool-type",
+  "cli": {
+    "name": "aws",
+    "install": {
+      "darwin": "brew install awscli",
+      "linux": "pip install awscli || curl https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip -o awscliv2.zip && unzip awscliv2.zip && sudo ./aws/install"
+    },
+    "version_check": "aws --version"
+  },
+  "env_vars": [
+    { "name": "AWS_ACCESS_KEY_ID", "required": false, "description": "AWS access key (or use `aws configure`)" },
+    { "name": "AWS_SECRET_ACCESS_KEY", "required": false, "description": "AWS secret key" },
+    { "name": "AWS_DEFAULT_REGION", "required": false, "description": "Default AWS region (e.g. us-east-1)" },
+    { "name": "AWS_PROFILE", "required": false, "description": "Named profile from ~/.aws/credentials" }
+  ],
+  "tools": {
+    "s3_list_buckets": {
+      "subcommand": "s3-ls",
+      "args": [],
+      "output_format": "text"
+    },
+    "s3_list_objects": {
+      "subcommand": "s3-ls-bucket",
+      "args": ["bucket"],
+      "output_format": "text",
+      "guidance": "Bucket name without s3:// prefix"
+    },
+    "s3_get_object": {
+      "subcommand": "s3-get",
+      "args": ["bucket", "key"],
+      "output_format": "text",
+      "guidance": "Downloads to stdout. Use for text files only."
+    },
+    "lambda_list_functions": {
+      "subcommand": "lambda-ls",
+      "args": [],
+      "output_format": "json"
+    },
+    "lambda_invoke": {
+      "subcommand": "lambda-invoke",
+      "args": ["function_name", "payload"],
+      "output_format": "json",
+      "guidance": "Payload should be a JSON string"
+    },
+    "cloudformation_list_stacks": {
+      "subcommand": "cf-ls",
+      "args": [],
+      "output_format": "json"
+    },
+    "sts_get_caller_identity": {
+      "subcommand": "whoami",
+      "args": [],
+      "output_format": "json",
+      "guidance": "Verify which AWS account/role is active"
+    }
+  },
+  "wrapper_template": "case \"${1:-}\" in\n  s3-ls)\n    aws s3 ls | head -n \"$MAX_LINES\"\n    ;;\n  s3-ls-bucket)\n    [ -z \"${2:-}\" ] && { echo \"Usage: aws.sh s3-ls-bucket <bucket>\" >&2; exit 1; }\n    aws s3 ls \"s3://$2\" --recursive --human-readable | head -n \"$MAX_LINES\"\n    ;;\n  s3-get)\n    [ -z \"${3:-}\" ] && { echo \"Usage: aws.sh s3-get <bucket> <key>\" >&2; exit 1; }\n    aws s3 cp \"s3://$2/$3\" - | head -n \"$MAX_LINES\"\n    ;;\n  lambda-ls)\n    aws lambda list-functions --query 'Functions[].{Name:FunctionName,Runtime:Runtime,Size:CodeSize}' --output table | head -n \"$MAX_LINES\"\n    ;;\n  lambda-invoke)\n    [ -z \"${2:-}\" ] && { echo \"Usage: aws.sh lambda-invoke <function> [payload]\" >&2; exit 1; }\n    aws lambda invoke --function-name \"$2\" --payload \"${3:-'{}'}\" --cli-binary-format raw-in-base64-out /dev/stdout 2>/dev/null\n    ;;\n  cf-ls)\n    aws cloudformation list-stacks --query 'StackSummaries[?StackStatus!=`DELETE_COMPLETE`].{Name:StackName,Status:StackStatus}' --output table | head -n \"$MAX_LINES\"\n    ;;\n  whoami)\n    aws sts get-caller-identity --output json\n    ;;",
+  "notes": "AWS CLI must be configured: run `aws configure` or set AWS_PROFILE. Most commands default to the region in AWS_DEFAULT_REGION."
+}

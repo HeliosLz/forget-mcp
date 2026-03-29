@@ -1,0 +1,65 @@
+{
+  "$schema": "./schema.json",
+  "server_patterns": ["filesystem", "@modelcontextprotocol/server-filesystem", "mcp-server-filesystem"],
+  "classification": "tool-type",
+  "cli": {
+    "name": "ls",
+    "install": {
+      "darwin": "Built-in (coreutils)",
+      "linux": "Built-in (coreutils)"
+    },
+    "version_check": "ls --version 2>/dev/null || echo 'ls available'"
+  },
+  "env_vars": [],
+  "tools": {
+    "read_text_file": {
+      "subcommand": "cat",
+      "args": ["path"],
+      "output_format": "text",
+      "guidance": "Use head/tail args for large files: filesystem.sh head <path> <n>"
+    },
+    "list_directory": {
+      "subcommand": "ls",
+      "args": ["path"],
+      "output_format": "text"
+    },
+    "get_file_info": {
+      "subcommand": "stat",
+      "args": ["path"],
+      "output_format": "text"
+    },
+    "search_files": {
+      "subcommand": "find",
+      "args": ["path", "pattern"],
+      "output_format": "text",
+      "guidance": "Pattern is a glob, e.g. '*.ts'. Search is recursive."
+    },
+    "directory_tree": {
+      "subcommand": "tree",
+      "args": ["path"],
+      "output_format": "text",
+      "guidance": "Shows recursive directory structure. Can be large for deep trees."
+    },
+    "write_file": {
+      "subcommand": "write",
+      "args": ["path", "content"],
+      "guidance": "Creates or overwrites the file. Use with caution."
+    },
+    "create_directory": {
+      "subcommand": "mkdir",
+      "args": ["path"]
+    },
+    "move_file": {
+      "subcommand": "mv",
+      "args": ["source", "destination"],
+      "guidance": "Fails if destination already exists."
+    },
+    "edit_file": {
+      "subcommand": "edit",
+      "args": ["path", "old_text", "new_text"],
+      "guidance": "Replaces first occurrence of old_text with new_text in the file."
+    }
+  },
+  "wrapper_template": "case \"${1:-}\" in\n  cat)\n    [ -z \"${2:-}\" ] && { echo \"Usage: filesystem.sh cat <path>\" >&2; exit 1; }\n    cat \"$2\" | head -n \"$MAX_LINES\"\n    ;;\n  head)\n    [ -z \"${2:-}\" ] && { echo \"Usage: filesystem.sh head <path> [lines]\" >&2; exit 1; }\n    head -n \"${3:-50}\" \"$2\"\n    ;;\n  tail)\n    [ -z \"${2:-}\" ] && { echo \"Usage: filesystem.sh tail <path> [lines]\" >&2; exit 1; }\n    tail -n \"${3:-50}\" \"$2\"\n    ;;\n  ls)\n    ls -la \"${2:-.}\" | head -n \"$MAX_LINES\"\n    ;;\n  stat)\n    [ -z \"${2:-}\" ] && { echo \"Usage: filesystem.sh stat <path>\" >&2; exit 1; }\n    stat \"$2\"\n    ;;\n  find)\n    [ -z \"${3:-}\" ] && { echo \"Usage: filesystem.sh find <path> <pattern>\" >&2; exit 1; }\n    find \"$2\" -name \"$3\" 2>/dev/null | head -n \"$MAX_LINES\"\n    ;;\n  tree)\n    if command -v tree >/dev/null 2>&1; then\n      tree \"${2:-.}\" -L 3 | head -n \"$MAX_LINES\"\n    else\n      find \"${2:-.}\" -maxdepth 3 -print | head -n \"$MAX_LINES\"\n    fi\n    ;;\n  write)\n    [ -z \"${3:-}\" ] && { echo \"Usage: filesystem.sh write <path> <content>\" >&2; exit 1; }\n    printf '%s' \"$3\" > \"$2\" && echo \"Written: $2\"\n    ;;\n  mkdir)\n    [ -z \"${2:-}\" ] && { echo \"Usage: filesystem.sh mkdir <path>\" >&2; exit 1; }\n    mkdir -p \"$2\" && echo \"Created: $2\"\n    ;;\n  mv)\n    [ -z \"${3:-}\" ] && { echo \"Usage: filesystem.sh mv <source> <destination>\" >&2; exit 1; }\n    mv -n \"$2\" \"$3\" && echo \"Moved: $2 -> $3\"\n    ;;\n  edit)\n    [ -z \"${4:-}\" ] && { echo \"Usage: filesystem.sh edit <path> <old_text> <new_text>\" >&2; exit 1; }\n    sed -i'' \"s|$3|$4|\" \"$2\" && echo \"Edited: $2\"\n    ;;",
+  "notes": "All operations are restricted to the current working directory by default. The filesystem MCP server has security restrictions on allowed directories that this wrapper does not replicate. Use with appropriate caution."
+}

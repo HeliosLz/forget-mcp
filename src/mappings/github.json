@@ -1,0 +1,83 @@
+{
+  "$schema": "./schema.json",
+  "server_patterns": ["github", "@modelcontextprotocol/server-github", "@github/mcp-server", "github-mcp-server"],
+  "classification": "tool-type",
+  "cli": {
+    "name": "gh",
+    "install": {
+      "darwin": "brew install gh",
+      "linux": "sudo apt install gh || sudo dnf install gh",
+      "fallback": "https://cli.github.com/manual/installation"
+    },
+    "version_check": "gh --version"
+  },
+  "env_vars": [
+    { "name": "GITHUB_TOKEN", "required": false, "description": "GitHub personal access token (or use `gh auth login`)" }
+  ],
+  "tools": {
+    "list_issues": {
+      "subcommand": "issues",
+      "args": [],
+      "output_format": "text",
+      "guidance": "Add --state=open or --state=closed to filter. Use --limit N for pagination."
+    },
+    "get_issue": {
+      "subcommand": "issue",
+      "args": ["number"],
+      "output_format": "text"
+    },
+    "create_issue": {
+      "subcommand": "issue-create",
+      "args": ["title", "body"],
+      "guidance": "Body can be multiline. Use --label to add labels."
+    },
+    "add_issue_comment": {
+      "subcommand": "issue-comment",
+      "args": ["number", "body"]
+    },
+    "list_pull_requests": {
+      "subcommand": "prs",
+      "args": [],
+      "output_format": "text",
+      "guidance": "Add --state=open or --state=merged to filter."
+    },
+    "get_pull_request": {
+      "subcommand": "pr",
+      "args": ["number"],
+      "output_format": "text"
+    },
+    "create_pull_request": {
+      "subcommand": "pr-create",
+      "args": ["title", "body", "head", "base"],
+      "guidance": "head = source branch, base = target branch"
+    },
+    "get_pull_request_diff": {
+      "subcommand": "pr-diff",
+      "args": ["number"],
+      "output_format": "diff"
+    },
+    "merge_pull_request": {
+      "subcommand": "pr-merge",
+      "args": ["number"],
+      "guidance": "Defaults to squash merge. Pass --rebase or --merge for other strategies."
+    },
+    "search_code": {
+      "subcommand": "search-code",
+      "args": ["query"],
+      "output_format": "text"
+    },
+    "search_issues": {
+      "subcommand": "search-issues",
+      "args": ["query"],
+      "output_format": "text"
+    },
+    "get_file_contents": {
+      "subcommand": "file",
+      "args": ["owner_repo", "path"],
+      "output_format": "text",
+      "guidance": "owner_repo format: owner/repo. Path relative to repo root."
+    }
+  },
+  "wrapper_template": "case \"${1:-}\" in\n  issues)\n    gh issue list \"${@:2}\" | head -n \"$MAX_LINES\"\n    ;;\n  issue)\n    [ -z \"${2:-}\" ] && { echo \"Usage: github.sh issue <number>\" >&2; exit 1; }\n    gh issue view \"$2\" | head -n \"$MAX_LINES\"\n    ;;\n  issue-create)\n    [ -z \"${2:-}\" ] && { echo \"Usage: github.sh issue-create <title> [body]\" >&2; exit 1; }\n    gh issue create --title \"$2\" ${3:+--body \"$3\"}\n    ;;\n  issue-comment)\n    [ -z \"${3:-}\" ] && { echo \"Usage: github.sh issue-comment <number> <body>\" >&2; exit 1; }\n    gh issue comment \"$2\" --body \"$3\"\n    ;;\n  prs)\n    gh pr list \"${@:2}\" | head -n \"$MAX_LINES\"\n    ;;\n  pr)\n    [ -z \"${2:-}\" ] && { echo \"Usage: github.sh pr <number>\" >&2; exit 1; }\n    gh pr view \"$2\" | head -n \"$MAX_LINES\"\n    ;;\n  pr-create)\n    [ -z \"${2:-}\" ] && { echo \"Usage: github.sh pr-create <title> <body> <head> <base>\" >&2; exit 1; }\n    gh pr create --title \"$2\" --body \"${3:-}\" --head \"${4:-HEAD}\" --base \"${5:-main}\"\n    ;;\n  pr-diff)\n    [ -z \"${2:-}\" ] && { echo \"Usage: github.sh pr-diff <number>\" >&2; exit 1; }\n    gh pr diff \"$2\" | head -n \"$MAX_LINES\"\n    ;;\n  pr-merge)\n    [ -z \"${2:-}\" ] && { echo \"Usage: github.sh pr-merge <number>\" >&2; exit 1; }\n    gh pr merge \"$2\" --squash \"${@:3}\"\n    ;;\n  search-code)\n    [ -z \"${2:-}\" ] && { echo \"Usage: github.sh search-code <query>\" >&2; exit 1; }\n    gh search code \"$2\" | head -n \"$MAX_LINES\"\n    ;;\n  search-issues)\n    [ -z \"${2:-}\" ] && { echo \"Usage: github.sh search-issues <query>\" >&2; exit 1; }\n    gh search issues \"$2\" | head -n \"$MAX_LINES\"\n    ;;\n  file)\n    [ -z \"${3:-}\" ] && { echo \"Usage: github.sh file <owner/repo> <path>\" >&2; exit 1; }\n    gh api \"repos/$2/contents/$3\" --jq '.content' | base64 -d | head -n \"$MAX_LINES\"\n    ;;",
+  "notes": "The gh CLI must be authenticated: run `gh auth login` first. Most commands operate on the current repo by default. Specify --repo owner/repo to target a different repository."
+}
