@@ -1,10 +1,10 @@
 {
   "name": "forget-mcp",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Convert MCP servers into Skill documents + CLI wrappers. Kill context window overhead.",
   "type": "module",
   "bin": {
-    "forget-mcp": "./dist/cli.js"
+    "forget-mcp": "dist/cli.js"
   },
   "scripts": {
     "dev": "bun run src/cli.ts",
