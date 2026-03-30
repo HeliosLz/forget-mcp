@@ -16,10 +16,7 @@ export async function disableMcpEntry(server: ResolvedServer): Promise<void> {
 
   delete data.mcpServers[server.name];
 
-  // Clean up empty mcpServers object
-  if (Object.keys(data.mcpServers).length === 0) {
-    delete data.mcpServers;
-  }
+  // Keep mcpServers key even when empty to satisfy schema validation
 
   const tmpPath = `${configPath}.tmp`;
   writeFileSync(tmpPath, JSON.stringify(data, null, 2) + "\n");
