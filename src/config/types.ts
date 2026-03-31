@@ -20,6 +20,8 @@ export interface ResolvedServer {
   config: McpServerConfig;
   scope: "local" | "user" | "project";
   configPath: string;
+  /** When from ~/.claude.json, the projects[key] this server lives under */
+  projectKey?: string;
 }
 
 /** Tool metadata in a curated mapping */

@@ -1,10 +1,12 @@
-import { readFileSync, existsSync } from "fs";
+import { readFileSync } from "fs";
 import { join } from "path";
 import { homedir } from "os";
 import type { McpServerConfig, ScopeConfig, ResolvedServer } from "./types.js";
 
+const HOME = homedir();
+const CLAUDE_JSON_PATH = join(HOME, ".claude.json");
+
 function readJsonSafe(path: string): Record<string, any> | null {
-  if (!existsSync(path)) return null;
   try {
     return JSON.parse(readFileSync(path, "utf-8"));
   } catch {
@@ -20,6 +22,20 @@ function extractServers(data: Record<string, any> | null): Record<string, McpSer
   return {};
 }
 
+/**
+ * Extract MCP servers from ~/.claude.json for a given project key.
+ * Structure: { projects: { [path]: { mcpServers: { ... } } } }
+ */
+function extractClaudeJsonServers(
+  data: Record<string, any> | null,
+  projectKey: string
+): Record<string, McpServerConfig> {
+  if (!data || typeof data !== "object") return {};
+  const projects = data.projects;
+  if (!projects || typeof projects !== "object") return {};
+  return extractServers(projects[projectKey]);
+}
+
 export function parseScope(scope: "local" | "user" | "project"): ScopeConfig {
   let path: string;
   switch (scope) {
@@ -27,7 +43,7 @@ export function parseScope(scope: "local" | "user" | "project"): ScopeConfig {
       path = join(".claude", "settings.local.json");
       break;
     case "user":
-      path = join(homedir(), ".claude", "settings.json");
+      path = join(HOME, ".claude", "settings.json");
       break;
     case "project":
       path = ".mcp.json";
@@ -38,27 +54,55 @@ export function parseScope(scope: "local" | "user" | "project"): ScopeConfig {
 }
 
 /**
- * Parse all 3 config scopes and merge.
+ * Parse all config scopes and merge.
  * Precedence: local > project > user (same as Claude Code).
+ *
+ * For local and user scopes, servers can live in two places:
+ *   - ~/.claude.json  → projects[cwd].mcpServers  (local)
+ *   - ~/.claude.json  → projects[home].mcpServers  (user)
+ *   - .claude/settings.local.json → mcpServers     (local, legacy)
+ *   - ~/.claude/settings.json     → mcpServers     (user, legacy)
+ *
+ * ~/.claude.json entries take precedence within the same scope.
  */
 export async function parseAllConfigs(): Promise<ResolvedServer[]> {
-  const scopes: ScopeConfig[] = [
-    parseScope("local"),
-    parseScope("project"),
-    parseScope("user"),
-  ];
+  const claudeJsonData = readJsonSafe(CLAUDE_JSON_PATH);
+  const cwd = process.cwd();
+  const home = HOME;
+
+  // ~/.claude.json local-scope servers (canonical)
+  const claudeJsonLocal = extractClaudeJsonServers(claudeJsonData, cwd);
+  // ~/.claude.json user-scope servers (canonical)
+  const claudeJsonUser = extractClaudeJsonServers(claudeJsonData, home);
+
+  // Legacy settings files
+  const legacyLocal = parseScope("local");
+  const projectScope = parseScope("project");
+  const legacyUser = parseScope("user");
 
   const seen = new Set<string>();
   const result: ResolvedServer[] = [];
 
-  // Higher-precedence scopes first
-  for (const scope of scopes) {
-    for (const [name, config] of Object.entries(scope.servers)) {
+  function addServers(
+    servers: Record<string, McpServerConfig>,
+    scope: "local" | "user" | "project",
+    configPath: string,
+    projectKey?: string
+  ) {
+    for (const [name, config] of Object.entries(servers)) {
       if (seen.has(name)) continue;
       seen.add(name);
-      result.push({ name, config, scope: scope.scope, configPath: scope.path });
+      result.push({ name, config, scope, configPath, projectKey });
     }
   }
+
+  // Precedence order: local > project > user
+  // Within local/user, ~/.claude.json takes precedence over legacy settings files
+  addServers(claudeJsonLocal, "local", CLAUDE_JSON_PATH, cwd);
+  addServers(legacyLocal.servers, "local", legacyLocal.path);
+  addServers(projectScope.servers, "project", projectScope.path);
+  addServers(claudeJsonUser, "user", CLAUDE_JSON_PATH, home);
+  addServers(legacyUser.servers, "user", legacyUser.path);
 
   return result;
 }

@@ -7,7 +7,7 @@ export async function scan(flags: Set<string>): Promise<void> {
 
   if (servers.length === 0) {
     out.info("No MCP servers found in Claude Code config.");
-    out.info("Checked: .claude/settings.local.json, ~/.claude/settings.json, .mcp.json");
+    out.info("Checked: ~/.claude.json, .claude/settings.local.json, ~/.claude/settings.json, .mcp.json");
     return;
   }
 
