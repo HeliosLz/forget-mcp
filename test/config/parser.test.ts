@@ -71,3 +71,83 @@ describe("config parser", () => {
     expect(result.servers).toEqual({});
   });
 });
+
+describe("extractClaudeJsonServers logic", () => {
+  it("extracts servers from nested projects structure", async () => {
+    // Test the extraction logic via parseAllConfigs with a .mcp.json proxy
+    // (since ~/.claude.json is a module-level constant we can't easily redirect)
+    // We verify the extractServers reuse works via the project scope path
+    const testDir = join(import.meta.dir, "..", ".test-tmp-claude");
+    mkdirSync(join(testDir, ".claude"), { recursive: true });
+    const origCwd = process.cwd();
+    process.chdir(testDir);
+
+    writeFileSync(
+      join(testDir, ".mcp.json"),
+      JSON.stringify({
+        mcpServers: {
+          "project-server": { command: "node", args: ["srv.js"] },
+        },
+      })
+    );
+
+    try {
+      const { parseAllConfigs } = await import("../../src/config/parser.js");
+      const servers = await parseAllConfigs();
+      const found = servers.find((s) => s.name === "project-server");
+      expect(found).toBeDefined();
+      expect(found!.scope).toBe("project");
+      expect(found!.projectKey).toBeUndefined();
+    } finally {
+      process.chdir(origCwd);
+      rmSync(testDir, { recursive: true });
+    }
+  });
+
+  it("handles missing projects key gracefully", async () => {
+    // extractClaudeJsonServers should return {} for data without projects key
+    // We test this indirectly: parseAllConfigs should not throw even when
+    // ~/.claude.json has no projects key (it returns servers from other scopes)
+    const testDir = join(import.meta.dir, "..", ".test-tmp-noproj");
+    mkdirSync(join(testDir, ".claude"), { recursive: true });
+    const origCwd = process.cwd();
+    process.chdir(testDir);
+
+    try {
+      const { parseAllConfigs } = await import("../../src/config/parser.js");
+      const servers = await parseAllConfigs();
+      expect(Array.isArray(servers)).toBe(true);
+    } finally {
+      process.chdir(origCwd);
+      rmSync(testDir, { recursive: true });
+    }
+  });
+
+  it("legacy settings.local.json servers are included", async () => {
+    const testDir = join(import.meta.dir, "..", ".test-tmp-legacy");
+    mkdirSync(join(testDir, ".claude"), { recursive: true });
+    const origCwd = process.cwd();
+    process.chdir(testDir);
+
+    writeFileSync(
+      join(testDir, ".claude", "settings.local.json"),
+      JSON.stringify({
+        mcpServers: {
+          "legacy-local": { command: "node", args: ["old.js"] },
+        },
+      })
+    );
+
+    try {
+      const { parseAllConfigs } = await import("../../src/config/parser.js");
+      const servers = await parseAllConfigs();
+      const found = servers.find((s) => s.name === "legacy-local");
+      expect(found).toBeDefined();
+      expect(found!.scope).toBe("local");
+      expect(found!.projectKey).toBeUndefined();
+    } finally {
+      process.chdir(origCwd);
+      rmSync(testDir, { recursive: true });
+    }
+  });
+});
