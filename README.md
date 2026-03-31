@@ -37,7 +37,7 @@ npx forget-mcp status
 
 ## What It Does
 
-1. **Scans** your Claude Code MCP config (all 3 scopes: local, user, project)
+1. **Scans** your Claude Code MCP config (`~/.claude.json`, `.mcp.json`, and legacy settings files)
 2. **Matches** servers against curated mappings (Supabase, GitHub, filesystem, AWS, Cloudflare)
 3. **Generates** a `SKILL.md` + `tools/{name}.sh` in `.claude/skills/{name}/`
 4. **Offers to disable** the MCP server entry so context is freed
@@ -207,7 +207,7 @@ npx forget-mcp status
 
 ## 它做了什么
 
-1. **扫描** Claude Code 的 MCP 配置（3 个作用域：local、user、project）
+1. **扫描** Claude Code 的 MCP 配置（`~/.claude.json`、`.mcp.json` 及旧版 settings 文件）
 2. **匹配** 服务器到预置映射表（Supabase、GitHub、文件系统、AWS、Cloudflare）
 3. **生成** `SKILL.md` + `tools/{name}.sh` 到 `.claude/skills/{name}/`
 4. **提示禁用** MCP 服务器配置，释放上下文空间

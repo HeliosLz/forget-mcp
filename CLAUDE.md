@@ -10,7 +10,7 @@ CLI tool that converts MCP server configurations into Skill documents + thin bas
 src/
   cli.ts                  Entry point, command router
   config/
-    parser.ts             Parse 3 Claude Code config scopes (local/user/project)
+    parser.ts             Parse Claude Code config scopes (local/user/project)
     writer.ts             Disable MCP entries (atomic: write .tmp -> rename)
     types.ts              TypeScript types
   mappings/
@@ -48,7 +48,7 @@ src/
 bun run src/cli.ts scan              # Dev: run directly
 bun run src/cli.ts convert supabase --keep
 bun run src/cli.ts verify --dry supabase
-bun test                             # 78 tests
+bun test                             # 81 tests
 bun run build                        # Build to dist/cli.js
 node dist/cli.js --help              # Test built version
 ```
@@ -72,10 +72,10 @@ Tests use `bun:test`. Mapping validation checks all JSON files against `schema.j
 
 ## Config Scopes (Claude Code)
 
-| Scope | File | Added via |
-|-------|------|-----------|
-| Local (default) | `.claude/settings.local.json` | `claude mcp add` |
-| User | `~/.claude/settings.json` | `claude mcp add -s user` |
-| Project | `.mcp.json` | `claude mcp add -s project` |
+| Scope | Canonical location | Legacy fallback | Added via |
+|-------|-------------------|-----------------|-----------|
+| Local (default) | `~/.claude.json` → `projects[cwd].mcpServers` | `.claude/settings.local.json` | `claude mcp add` |
+| User | `~/.claude.json` → `projects[home].mcpServers` | `~/.claude/settings.json` | `claude mcp add -s user` |
+| Project | `.mcp.json` | — | `claude mcp add -s project` |
 
-Precedence: local > project > user.
+Precedence: local > project > user. Within local/user, `~/.claude.json` takes precedence over legacy settings files.
