@@ -37,7 +37,7 @@ npx forget-mcp status
 
 ## What It Does
 
-1. **Scans** your Claude Code MCP config (`~/.claude.json`, `.mcp.json`, and legacy settings files)
+1. **Scans** your Claude Code MCP config (`~/.claude.json` root and project-scoped, `.mcp.json`, and legacy settings files)
 2. **Matches** servers against curated mappings (Supabase, GitHub, filesystem, AWS, Cloudflare)
 3. **Generates** a `SKILL.md` + `tools/{name}.sh` in `.claude/skills/{name}/`
 4. **Offers to disable** the MCP server entry so context is freed

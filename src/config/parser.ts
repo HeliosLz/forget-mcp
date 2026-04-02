@@ -1,4 +1,4 @@
-import { readFileSync } from "fs";
+import { readFileSync, existsSync } from "fs";
 import { join } from "path";
 import { homedir } from "os";
 import type { McpServerConfig, ScopeConfig, ResolvedServer } from "./types.js";
@@ -9,12 +9,15 @@ const CLAUDE_JSON_PATH = join(HOME, ".claude.json");
 function readJsonSafe(path: string): Record<string, any> | null {
   try {
     return JSON.parse(readFileSync(path, "utf-8"));
-  } catch {
+  } catch (err) {
+    if (existsSync(path)) {
+      console.error(`⚠ Failed to parse ${path}: invalid JSON`);
+    }
     return null;
   }
 }
 
-function extractServers(data: Record<string, any> | null): Record<string, McpServerConfig> {
+export function extractServers(data: Record<string, any> | null): Record<string, McpServerConfig> {
   if (!data || typeof data !== "object") return {};
   if (data.mcpServers && typeof data.mcpServers === "object") {
     return data.mcpServers as Record<string, McpServerConfig>;
@@ -72,7 +75,9 @@ export async function parseAllConfigs(): Promise<ResolvedServer[]> {
 
   // ~/.claude.json local-scope servers (canonical)
   const claudeJsonLocal = extractClaudeJsonServers(claudeJsonData, cwd);
-  // ~/.claude.json user-scope servers (canonical)
+  // ~/.claude.json root-level mcpServers (user scope, global)
+  const claudeJsonRoot = extractServers(claudeJsonData);
+  // ~/.claude.json user-scope servers under projects[home]
   const claudeJsonUser = extractClaudeJsonServers(claudeJsonData, home);
 
   // Legacy settings files
@@ -97,10 +102,12 @@ export async function parseAllConfigs(): Promise<ResolvedServer[]> {
   }
 
   // Precedence order: local > project > user
-  // Within local/user, ~/.claude.json takes precedence over legacy settings files
+  // Within local: ~/.claude.json projects[cwd] > legacy settings.local.json
+  // Within user: ~/.claude.json root mcpServers > projects[home] > legacy settings.json
   addServers(claudeJsonLocal, "local", CLAUDE_JSON_PATH, cwd);
   addServers(legacyLocal.servers, "local", legacyLocal.path);
   addServers(projectScope.servers, "project", projectScope.path);
+  addServers(claudeJsonRoot, "user", CLAUDE_JSON_PATH);
   addServers(claudeJsonUser, "user", CLAUDE_JSON_PATH, home);
   addServers(legacyUser.servers, "user", legacyUser.path);
 
