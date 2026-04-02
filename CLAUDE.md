@@ -75,7 +75,8 @@ Tests use `bun:test`. Mapping validation checks all JSON files against `schema.j
 | Scope | Canonical location | Legacy fallback | Added via |
 |-------|-------------------|-----------------|-----------|
 | Local (default) | `~/.claude.json` → `projects[cwd].mcpServers` | `.claude/settings.local.json` | `claude mcp add` |
+| User | `~/.claude.json` → root `mcpServers` | `~/.claude/settings.json` | manual edit |
 | User | `~/.claude.json` → `projects[home].mcpServers` | `~/.claude/settings.json` | `claude mcp add -s user` |
 | Project | `.mcp.json` | — | `claude mcp add -s project` |
 
-Precedence: local > project > user. Within local/user, `~/.claude.json` takes precedence over legacy settings files.
+Precedence: local > project > user. Within user scope: root `mcpServers` > `projects[home]` > legacy settings files.
