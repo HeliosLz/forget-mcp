@@ -46,7 +46,3 @@ skills/
 | Project | `.mcp.json` | — |
 
 Precedence: local > project > user. Within user scope: root `mcpServers` > `projects[home]` > legacy settings files.
-
-## Legacy CLI
-
-The `src/` directory contains a legacy CLI tool (`npx forget-mcp`) from earlier versions. It is no longer the primary distribution method. The skill files in `skills/` are the product.
