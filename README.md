@@ -17,108 +17,57 @@ Before: Claude -> MCP Server -> External System -> Data -> Claude  (30-60k token
 After:  Claude reads skill -> Runs CLI directly -> Result -> Claude  (< 1k tokens)
 ```
 
-forget-mcp installs skill files that teach Claude the CLI commands directly. No MCP server running, no tool schemas in context, no intermediate wrapper scripts.
+forget-mcp is a set of skill files. Copy them into your project, and Claude knows how to use CLI tools directly. No MCP server running, no tool schemas in context.
 
-## Quick Start
+## Install
 
 ```bash
-# See what MCP servers you have and which skills are available
-npx forget-mcp scan
-
-# Install a skill (replaces MCP with direct CLI usage)
-npx forget-mcp install supabase
-
-# Install all available skills
-npx forget-mcp install --all
+# Clone and copy skills into your project
+git clone https://github.com/HeliosLz/forget-mcp.git /tmp/forget-mcp
+mkdir -p .claude/skills/forget-mcp
+cp /tmp/forget-mcp/skills/*.md .claude/skills/forget-mcp/
+rm -rf /tmp/forget-mcp
 ```
 
-After installing, Claude reads the skill and knows how to use `psql`/`gh`/`aws`/etc. directly. You can then disable the MCP server in your config to free context space.
+Or copy individual skills:
 
-## What It Does
-
-1. **Scans** your Claude Code MCP config (`~/.claude.json` root and project-scoped, `.mcp.json`, and legacy settings files)
-2. **Matches** servers against available skills (Supabase, GitHub, filesystem, AWS, Cloudflare)
-3. **Installs** skill files to `.claude/skills/forget-mcp/` — Claude reads these automatically
-4. **Includes** a meta-skill (`_meta.md`) that guides Claude through the MCP replacement process
-
-### What Gets Installed
-
-```
-.claude/skills/forget-mcp/
-  supabase.md     # psql commands, output handling, error patterns
-  github.md       # gh CLI commands for issues, PRs, search
-  _meta.md        # Guides Claude through scanning and disabling MCP servers
+```bash
+# Just supabase
+curl -sL https://raw.githubusercontent.com/HeliosLz/forget-mcp/master/skills/supabase.md \
+  -o .claude/skills/forget-mcp/supabase.md --create-dirs
+curl -sL https://raw.githubusercontent.com/HeliosLz/forget-mcp/master/skills/_meta.md \
+  -o .claude/skills/forget-mcp/_meta.md
 ```
 
-Each skill file teaches Claude:
-- Which CLI commands replace each MCP operation
-- How to handle output (truncation, formatting)
-- Prerequisites (tools to install, env vars to set)
-- Common errors and fixes
+That's it. Claude reads the skills automatically.
+
+## What Happens Next
+
+After installing, tell Claude to replace your MCP servers. The `_meta.md` skill guides Claude through:
+
+1. **Scan** your MCP config (`~/.claude.json`, `.mcp.json`, etc.)
+2. **Match** servers to installed skills
+3. **Verify** CLI tools are installed and configured
+4. **Disable** MCP server entries (reversible — sets `"disabled": true`)
+
+Or just use Claude normally — it will use the CLI commands from the skills instead of calling MCP servers.
 
 ## Available Skills
 
 | Skill | Replaces MCP | Uses CLI |
 |-------|-------------|----------|
-| supabase | Supabase MCP | `psql` + `supabase` CLI |
-| github | GitHub MCP | `gh` CLI |
-| filesystem | Filesystem MCP | Built-in shell commands |
-| aws | AWS MCP | `aws` CLI |
-| cloudflare | Cloudflare MCP | `wrangler` CLI |
-
-## Commands
-
-| Command | Description |
-|---------|-------------|
-| `forget-mcp scan` | List MCP servers and show skill availability |
-| `forget-mcp install <server>` | Install a skill for one server |
-| `forget-mcp install --all` | Install all available skills |
-
-### Flags
-
-| Flag | Description |
-|------|-------------|
-| `--json` | Output as JSON (for scripting) |
-| `--global` | Write skills to `~/.claude/skills/` instead of `.claude/skills/` |
-
-## How It Works
-
-```
-1. scan     → Reads MCP config, matches servers to available skills
-2. install  → Copies skill markdown to .claude/skills/forget-mcp/
-3. Claude   → Reads skill files automatically, uses CLI commands directly
-4. You      → Disable the MCP server entry to free context space
-```
-
-The `_meta.md` skill also teaches Claude how to do the entire replacement process itself — scanning config, verifying prerequisites, and disabling MCP entries.
-
-## Development
-
-```bash
-# Install
-bun install
-
-# Run directly
-bun run src/cli.ts scan
-
-# Test
-bun test
-
-# Build for npm
-bun run build         # -> dist/cli.js (single file, ~580KB)
-
-# Test built version
-node dist/cli.js --help
-```
+| supabase.md | Supabase MCP | `psql` + `supabase` CLI |
+| github.md | GitHub MCP | `gh` CLI |
+| filesystem.md | Filesystem MCP | Built-in shell commands |
+| aws.md | AWS MCP | `aws` CLI |
+| cloudflare.md | Cloudflare MCP | `wrangler` CLI |
+| _meta.md | — | Orchestrates the MCP replacement process |
 
 ## Contributing a Skill
 
-1. Create `src/skills/{name}.md` with frontmatter (`name`, `trigger`, `replaces_mcp`)
-2. Add a text import in `src/commands/install.ts`
-3. Ensure a matching server pattern exists in `src/mappings/`
-4. Run tests to verify
-
-See existing skill files for the format.
+1. Create `skills/{name}.md` with frontmatter (`name`, `trigger`, `replaces_mcp`)
+2. Include: prerequisites, operation table, output handling, common errors
+3. See existing skills for the format
 
 ## License
 
@@ -145,85 +94,54 @@ MCP 服务器会占用 AI 编码工具的大量上下文窗口。7-8 个服务�
 之后：Claude 读 skill -> 直接跑 CLI -> 结果 -> Claude  (< 1k token)
 ```
 
-forget-mcp 安装 skill 文件，直接教 Claude 用 CLI 命令操作。不需要运行 MCP 服务器，上下文里没有工具 schema，也没有中间脚本。
+forget-mcp 是一组 skill 文件。复制到项目里，Claude 就知道怎么直接用 CLI 工具。不需要运行 MCP 服务器，上下文里没有工具 schema。
 
-## 快速开始
+## 安装
 
 ```bash
-# 扫描你有哪些 MCP 服务器，哪些有可用的 skill
-npx forget-mcp scan
-
-# 安装一个 skill（用直接 CLI 替代 MCP）
-npx forget-mcp install supabase
-
-# 安装所有可用 skill
-npx forget-mcp install --all
+# 克隆并复制 skill 到你的项目
+git clone https://github.com/HeliosLz/forget-mcp.git /tmp/forget-mcp
+mkdir -p .claude/skills/forget-mcp
+cp /tmp/forget-mcp/skills/*.md .claude/skills/forget-mcp/
+rm -rf /tmp/forget-mcp
 ```
 
-安装后，Claude 会自动读取 skill 文件，直接使用 `psql`/`gh`/`aws` 等命令。然后你可以禁用 MCP 服务器配置来释放上下文空间。
+或只复制单个 skill：
 
-## 它做了什么
-
-1. **扫描** Claude Code 的 MCP 配置（`~/.claude.json` 根级和项目级、`.mcp.json` 及旧版 settings 文件）
-2. **匹配** 服务器到可用 skill（Supabase、GitHub、文件系统、AWS、Cloudflare）
-3. **安装** skill 文件到 `.claude/skills/forget-mcp/`——Claude 会自动读取
-4. **包含** 元 skill（`_meta.md`）引导 Claude 完成 MCP 替换流程
-
-### 安装的内容
-
-```
-.claude/skills/forget-mcp/
-  supabase.md     # psql 命令、输出处理、错误模式
-  github.md       # gh CLI 操作 issues、PR、搜索
-  _meta.md        # 引导 Claude 扫描和禁用 MCP 服务器
+```bash
+# 只要 supabase
+curl -sL https://raw.githubusercontent.com/HeliosLz/forget-mcp/master/skills/supabase.md \
+  -o .claude/skills/forget-mcp/supabase.md --create-dirs
+curl -sL https://raw.githubusercontent.com/HeliosLz/forget-mcp/master/skills/_meta.md \
+  -o .claude/skills/forget-mcp/_meta.md
 ```
 
-每个 skill 文件教 Claude：
-- 用什么 CLI 命令替代每个 MCP 操作
-- 如何处理输出（截断、格式化）
-- 前置条件（需要安装的工具、环境变量）
-- 常见错误和修复方法
+就这样。Claude 会自动读取 skill 文件。
+
+## 安装后
+
+告诉 Claude 替换你的 MCP 服务器。`_meta.md` 会引导 Claude：
+
+1. **扫描** MCP 配置（`~/.claude.json`、`.mcp.json` 等）
+2. **匹配** 服务器到已安装的 skill
+3. **验证** CLI 工具已安装和配置
+4. **禁用** MCP 服务器条目（可逆——设置 `"disabled": true`）
+
+或者直接正常使用 Claude——它会自动使用 skill 里的 CLI 命令，而不是调用 MCP 服务器。
 
 ## 可用 Skill
 
 | Skill | 替代 MCP | 使用 CLI |
 |-------|---------|----------|
-| supabase | Supabase MCP | `psql` + `supabase` CLI |
-| github | GitHub MCP | `gh` CLI |
-| filesystem | 文件系统 MCP | 内置 shell 命令 |
-| aws | AWS MCP | `aws` CLI |
-| cloudflare | Cloudflare MCP | `wrangler` CLI |
+| supabase.md | Supabase MCP | `psql` + `supabase` CLI |
+| github.md | GitHub MCP | `gh` CLI |
+| filesystem.md | 文件系统 MCP | 内置 shell 命令 |
+| aws.md | AWS MCP | `aws` CLI |
+| cloudflare.md | Cloudflare MCP | `wrangler` CLI |
+| _meta.md | — | 编排 MCP 替换流程 |
 
-## 命令
+## 贡献 Skill
 
-| 命令 | 说明 |
-|------|------|
-| `forget-mcp scan` | 列出 MCP 服务器和 skill 可用情况 |
-| `forget-mcp install <server>` | 安装一个 skill |
-| `forget-mcp install --all` | 安装所有可用 skill |
-
-### 参数
-
-| 参数 | 说明 |
-|------|------|
-| `--json` | JSON 格式输出（方便脚本调用） |
-| `--global` | 写入 `~/.claude/skills/` 而非 `.claude/skills/` |
-
-## 开发
-
-```bash
-# 安装
-bun install
-
-# 直接运行
-bun run src/cli.ts scan
-
-# 测试
-bun test
-
-# 构建 npm 包
-bun run build         # -> dist/cli.js（单文件，约 580KB）
-
-# 测试构建产物
-node dist/cli.js --help
-```
+1. 创建 `skills/{name}.md`，包含 frontmatter（`name`、`trigger`、`replaces_mcp`）
+2. 包含：前置条件、操作表、输出处理、常见错误
+3. 参考已有 skill 的格式

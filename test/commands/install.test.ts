@@ -80,7 +80,7 @@ describe("install command", () => {
   });
 
   it("skill files contain required frontmatter", async () => {
-    const skillDir = join(import.meta.dir, "../../src/skills");
+    const skillDir = join(import.meta.dir, "../../skills");
     const files = ["supabase.md", "github.md", "filesystem.md", "aws.md", "cloudflare.md", "_meta.md"];
 
     for (const file of files) {
@@ -105,7 +105,7 @@ describe("install command", () => {
 
   it("_meta.md contains MCP replacement guide", async () => {
     const content = readFileSync(
-      join(import.meta.dir, "../../src/skills/_meta.md"),
+      join(import.meta.dir, "../../skills/_meta.md"),
       "utf-8"
     );
     expect(content).toContain("Step 1");
