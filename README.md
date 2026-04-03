@@ -1,6 +1,6 @@
 # forget-mcp
 
-AI operation guides that replace MCP servers with direct CLI usage. Kill context window overhead.
+Skills that teach Claude to analyze MCP servers and replace them with direct CLI usage. Kill context window overhead.
 
 [English](#the-problem) | [中文](#问题)
 
@@ -17,7 +17,7 @@ Before: Claude -> MCP Server -> External System -> Data -> Claude  (30-60k token
 After:  Claude reads skill -> Runs CLI directly -> Result -> Claude  (< 1k tokens)
 ```
 
-forget-mcp is a set of skill files. Copy them into your project, and Claude knows how to use CLI tools directly. No MCP server running, no tool schemas in context.
+forget-mcp is a set of skills that teach Claude to analyze your MCP configuration, identify which servers can be replaced by curated CLI guides, and switch to direct CLI usage. No MCP server running, no tool schemas in context.
 
 ## Install
 
@@ -79,7 +79,7 @@ MIT
 
 # forget-mcp (中文)
 
-AI 操作指南，用直接的 CLI 命令替代 MCP 服务器，干掉上下文窗口的浪费。
+教 Claude 自动解析 MCP 服务器的用法，将其转化为直接的 CLI 操作指南，干掉上下文窗口的浪费。
 
 ## 问题
 
@@ -94,7 +94,7 @@ MCP 服务器会占用 AI 编码工具的大量上下文窗口。7-8 个服务�
 之后：Claude 读 skill -> 直接跑 CLI -> 结果 -> Claude  (< 1k token)
 ```
 
-forget-mcp 是一组 skill 文件。复制到项目里，Claude 就知道怎么直接用 CLI 工具。不需要运行 MCP 服务器，上下文里没有工具 schema。
+forget-mcp 是一组 skill，教 Claude 分析你的 MCP 配置，识别哪些服务器可以用预置的 CLI 操作指南替代，然后切换到直接 CLI 调用。不需要运行 MCP 服务器，上下文里没有工具 schema。
 
 ## 安装
 

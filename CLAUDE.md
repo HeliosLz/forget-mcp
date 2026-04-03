@@ -2,7 +2,7 @@
 
 ## Project Overview
 
-A set of skill files that teach Claude to use CLI tools directly instead of MCP servers. No CLI tool, no npm package — just markdown files that Claude reads.
+Skills that teach Claude to analyze MCP configurations, identify which servers can be replaced by curated CLI guides, and switch to direct CLI usage. No CLI tool, no npm package — just markdown files that Claude reads.
 
 ## Structure
 
