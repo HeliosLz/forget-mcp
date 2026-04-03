@@ -20,7 +20,8 @@ Use `wrangler` CLI (and Cloudflare API fallback) instead of the Cloudflare MCP s
 
 | Operation | Command |
 |-----------|---------|
-| List workers | `wrangler deployments list` |
+| List workers | See API fallback below |
+| List deployments | `wrangler deployments list` (current project) |
 | Deploy worker | `wrangler deploy` (from project root) |
 | Tail logs | `wrangler tail <worker-name>` |
 
@@ -72,6 +73,13 @@ curl -s -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" \
 
 When `wrangler` doesn't support an operation, use the Cloudflare API directly:
 
+**List all workers (account-level):**
+```bash
+curl -s -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" \
+  "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/workers/scripts" | jq '.result[].id'
+```
+
+**General API pattern:**
 ```bash
 curl -s -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" \
   "https://api.cloudflare.com/client/v4/<endpoint>" | jq '.'

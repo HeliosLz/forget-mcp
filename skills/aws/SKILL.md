@@ -31,7 +31,7 @@ Use `aws` CLI directly instead of the AWS MCP server.
 | Operation | Command |
 |-----------|---------|
 | List functions | `aws lambda list-functions --query 'Functions[].FunctionName' --output text` |
-| Invoke function | `aws lambda invoke --function-name <name> --payload '<json>' /dev/stdout` |
+| Invoke function | `aws lambda invoke --function-name <name> --cli-binary-format raw-in-base64-out --payload '<json>' /dev/stdout` |
 | Get function config | `aws lambda get-function --function-name <name>` |
 
 ### CloudFormation
@@ -52,7 +52,7 @@ Use `aws` CLI directly instead of the AWS MCP server.
 
 - Use `--output table` for readable output, `--output json` for parsing
 - Filter with `--query` (JMESPath): `--query 'Items[0:10]'` to limit results
-- Large S3 listings: add `--max-items 100`
+- Large S3 listings: use `aws s3api list-objects-v2 --bucket <bucket> --max-items 100` instead of `aws s3 ls`
 - Lambda output may be base64: pipe through `base64 -d` if needed
 
 ## Tips

@@ -6,44 +6,45 @@ Skills that teach Claude to analyze MCP servers and replace them with direct CLI
 
 ## The Problem
 
-MCP servers consume massive context window space in AI coding tools. With 7-8 servers, 30-60k tokens are burned on tool definitions alone before you type anything. One measured case: 143k of 200k tokens (72%) consumed by MCP tool schemas.
+MCP servers add an extra layer between the AI and the tools it uses. In some clients, this means tool definitions are loaded into context; in others, it adds process overhead and indirection.
 
 The deeper insight: most MCP servers are thin wrappers around CLI tools that already exist. Supabase MCP wraps `psql`. GitHub MCP wraps `gh`. Filesystem MCP wraps `ls`/`cat`/`grep`.
 
 ## The Fix
 
 ```
-Before: Claude -> MCP Server -> External System -> Data -> Claude  (30-60k tokens overhead)
-After:  Claude reads skill -> Runs CLI directly -> Result -> Claude  (< 1k tokens)
+Before: Claude -> MCP Server -> External System -> Data -> Claude  (extra indirection layer)
+After:  Claude reads skill -> Runs CLI directly -> Result -> Claude  (direct execution)
 ```
 
-forget-mcp is a set of skills that teach Claude to analyze your MCP configuration, identify which servers can be replaced by curated CLI guides, and switch to direct CLI usage. No MCP server running, no tool schemas in context.
+forget-mcp is a set of skills that teach Claude to analyze your MCP configuration, identify which servers can be replaced by curated CLI guides, and switch to direct CLI usage. Fewer moving parts, less indirection.
 
 ## Install
 
 ```bash
 # Clone and copy skills into your project
 git clone https://github.com/HeliosLz/forget-mcp.git /tmp/forget-mcp
-mkdir -p .claude/skills/forget-mcp
-cp /tmp/forget-mcp/skills/*.md .claude/skills/forget-mcp/
+mkdir -p .claude/skills
+cp -r /tmp/forget-mcp/skills/* .claude/skills/
 rm -rf /tmp/forget-mcp
 ```
 
 Or copy individual skills:
 
 ```bash
-# Just supabase
-curl -sL https://raw.githubusercontent.com/HeliosLz/forget-mcp/master/skills/supabase.md \
-  -o .claude/skills/forget-mcp/supabase.md --create-dirs
-curl -sL https://raw.githubusercontent.com/HeliosLz/forget-mcp/master/skills/_meta.md \
-  -o .claude/skills/forget-mcp/_meta.md
+# Just supabase (+ orchestrator)
+mkdir -p .claude/skills/supabase .claude/skills/forget-mcp
+curl -sL https://raw.githubusercontent.com/HeliosLz/forget-mcp/master/skills/supabase/SKILL.md \
+  -o .claude/skills/supabase/SKILL.md
+curl -sL https://raw.githubusercontent.com/HeliosLz/forget-mcp/master/skills/forget-mcp/SKILL.md \
+  -o .claude/skills/forget-mcp/SKILL.md
 ```
 
 That's it. Claude reads the skills automatically.
 
 ## What Happens Next
 
-After installing, tell Claude to replace your MCP servers. The `_meta.md` skill guides Claude through:
+After installing, tell Claude to replace your MCP servers. The `forget-mcp` skill guides Claude through:
 
 1. **Scan** your MCP config (`~/.claude.json`, `.mcp.json`, etc.)
 2. **Match** servers to installed skills
@@ -56,16 +57,16 @@ Or just use Claude normally — it will use the CLI commands from the skills ins
 
 | Skill | Replaces MCP | Uses CLI |
 |-------|-------------|----------|
-| supabase.md | Supabase MCP | `psql` + `supabase` CLI |
-| github.md | GitHub MCP | `gh` CLI |
-| filesystem.md | Filesystem MCP | Built-in shell commands |
-| aws.md | AWS MCP | `aws` CLI |
-| cloudflare.md | Cloudflare MCP | `wrangler` CLI |
-| _meta.md | — | Orchestrates the MCP replacement process |
+| supabase | Supabase MCP | `psql` + `supabase` CLI |
+| github | GitHub MCP | `gh` CLI |
+| filesystem | Filesystem MCP | Built-in shell commands |
+| aws | AWS MCP | `aws` CLI |
+| cloudflare | Cloudflare MCP | `wrangler` CLI |
+| forget-mcp | — | Orchestrates the MCP replacement process |
 
 ## Contributing a Skill
 
-1. Create `skills/{name}.md` with frontmatter (`name`, `trigger`, `replaces_mcp`)
+1. Create `skills/{name}/SKILL.md` with frontmatter (`name`, `trigger`, `replaces_mcp`)
 2. Include: prerequisites, operation table, output handling, common errors
 3. See existing skills for the format
 
@@ -83,44 +84,45 @@ MIT
 
 ## 问题
 
-MCP 服务器会占用 AI 编码工具的大量上下文窗口。7-8 个服务器，光工具定义就烧掉 3-6 万 token，你还没开始打字呢。实测案例：20 万 token 的上下文，MCP 工具 schema 就吃掉了 14.3 万（72%）。
+MCP 服务器在 AI 和工具之间增加了一层间接层。在某些客户端中，这意味着工具定义会被加载到上下文；在其他客户端中，则增加了进程开销和间接调用。
 
 更深层的洞察：大多数 MCP 服务器只是已有 CLI 工具的薄封装。Supabase MCP 封装的是 `psql`，GitHub MCP 封装的是 `gh`，文件系统 MCP 封装的是 `ls`/`cat`/`grep`。
 
 ## 解决方案
 
 ```
-之前：Claude -> MCP Server -> 外部系统 -> 数据 -> Claude  (3-6万 token 开销)
-之后：Claude 读 skill -> 直接跑 CLI -> 结果 -> Claude  (< 1k token)
+之前：Claude -> MCP Server -> 外部系统 -> 数据 -> Claude  (额外的间接层)
+之后：Claude 读 skill -> 直接跑 CLI -> 结果 -> Claude  (直接执行)
 ```
 
-forget-mcp 是一组 skill，教 Claude 分析你的 MCP 配置，识别哪些服务器可以用预置的 CLI 操作指南替代，然后切换到直接 CLI 调用。不需要运行 MCP 服务器，上下文里没有工具 schema。
+forget-mcp 是一组 skill，教 Claude 分析你的 MCP 配置，识别哪些服务器可以用预置的 CLI 操作指南替代，然后切换到直接 CLI 调用。更少的活动部件，更少的间接调用。
 
 ## 安装
 
 ```bash
 # 克隆并复制 skill 到你的项目
 git clone https://github.com/HeliosLz/forget-mcp.git /tmp/forget-mcp
-mkdir -p .claude/skills/forget-mcp
-cp /tmp/forget-mcp/skills/*.md .claude/skills/forget-mcp/
+mkdir -p .claude/skills
+cp -r /tmp/forget-mcp/skills/* .claude/skills/
 rm -rf /tmp/forget-mcp
 ```
 
 或只复制单个 skill：
 
 ```bash
-# 只要 supabase
-curl -sL https://raw.githubusercontent.com/HeliosLz/forget-mcp/master/skills/supabase.md \
-  -o .claude/skills/forget-mcp/supabase.md --create-dirs
-curl -sL https://raw.githubusercontent.com/HeliosLz/forget-mcp/master/skills/_meta.md \
-  -o .claude/skills/forget-mcp/_meta.md
+# 只要 supabase（+ 编排器）
+mkdir -p .claude/skills/supabase .claude/skills/forget-mcp
+curl -sL https://raw.githubusercontent.com/HeliosLz/forget-mcp/master/skills/supabase/SKILL.md \
+  -o .claude/skills/supabase/SKILL.md
+curl -sL https://raw.githubusercontent.com/HeliosLz/forget-mcp/master/skills/forget-mcp/SKILL.md \
+  -o .claude/skills/forget-mcp/SKILL.md
 ```
 
 就这样。Claude 会自动读取 skill 文件。
 
 ## 安装后
 
-告诉 Claude 替换你的 MCP 服务器。`_meta.md` 会引导 Claude：
+告诉 Claude 替换你的 MCP 服务器。`forget-mcp` skill 会引导 Claude：
 
 1. **扫描** MCP 配置（`~/.claude.json`、`.mcp.json` 等）
 2. **匹配** 服务器到已安装的 skill
@@ -133,15 +135,15 @@ curl -sL https://raw.githubusercontent.com/HeliosLz/forget-mcp/master/skills/_me
 
 | Skill | 替代 MCP | 使用 CLI |
 |-------|---------|----------|
-| supabase.md | Supabase MCP | `psql` + `supabase` CLI |
-| github.md | GitHub MCP | `gh` CLI |
-| filesystem.md | 文件系统 MCP | 内置 shell 命令 |
-| aws.md | AWS MCP | `aws` CLI |
-| cloudflare.md | Cloudflare MCP | `wrangler` CLI |
-| _meta.md | — | 编排 MCP 替换流程 |
+| supabase | Supabase MCP | `psql` + `supabase` CLI |
+| github | GitHub MCP | `gh` CLI |
+| filesystem | 文件系统 MCP | 内置 shell 命令 |
+| aws | AWS MCP | `aws` CLI |
+| cloudflare | Cloudflare MCP | `wrangler` CLI |
+| forget-mcp | — | 编排 MCP 替换流程 |
 
 ## 贡献 Skill
 
-1. 创建 `skills/{name}.md`，包含 frontmatter（`name`、`trigger`、`replaces_mcp`）
+1. 创建 `skills/{name}/SKILL.md`，包含 frontmatter（`name`、`trigger`、`replaces_mcp`）
 2. 包含：前置条件、操作表、输出处理、常见错误
 3. 参考已有 skill 的格式
