@@ -2,55 +2,61 @@
 
 ## Project Overview
 
-CLI tool that converts MCP server configurations into Skill documents + thin bash CLI wrappers for Claude Code. Eliminates context window overhead from MCP tool definitions.
+Skill-first tool that replaces MCP servers with AI operation guides. Instead of generating bash wrappers, it installs skill files that teach Claude how to use CLI tools directly — eliminating both MCP context overhead and intermediate scripts.
 
 ## Architecture
 
 ```
 src/
   cli.ts                  Entry point, command router
+  skills/                 Core product: hand-written skill markdown files
+    supabase.md           Teaches Claude to use psql directly
+    github.md             Teaches Claude to use gh directly
+    filesystem.md         Teaches Claude to use built-in shell commands
+    aws.md                Teaches Claude to use aws CLI directly
+    cloudflare.md         Teaches Claude to use wrangler directly
+    _meta.md              Meta skill: guides Claude through MCP replacement flow
   config/
     parser.ts             Parse Claude Code config scopes (local/user/project)
     writer.ts             Disable MCP entries (atomic: write .tmp -> rename)
     types.ts              TypeScript types
   mappings/
-    index.ts              Mapping loader (static imports, bundled into single JS)
+    index.ts              Mapping loader (pattern matching for server identification)
     schema.json           JSON Schema for mapping files
-    *.json                Curated mappings (supabase, github, filesystem, aws, cloudflare)
+    *.json                Curated mappings (used for server pattern matching)
+  commands/
+    install.ts            Install skills to .claude/skills/forget-mcp/
+    scan.ts               List MCP servers + skill availability
+    convert.ts            [deprecated] Old wrapper generator
+    verify.ts             [deprecated] Old smoke-test
+    status.ts             [deprecated] Old status checker
+    migrate.ts            [deprecated] Old migration guide
+  generate/
+    skill.ts              [deprecated] Old SKILL.md generator
+    wrapper.ts            [deprecated] Old bash wrapper generator
   introspect/
     connector.ts          MCP SDK client for unknown servers
-    classifier.ts         Tool-type vs service-type (lookup + heuristic)
-  generate/
-    skill.ts              SKILL.md generator from mapping metadata
-    wrapper.ts            Bash wrapper generator from mapping.wrapper_template
-  commands/
-    scan.ts               List MCP servers from config
-    convert.ts            Orchestrate: parse -> lookup -> generate -> prompt disable
-    verify.ts             Smoke-test wrappers (--dry for CI, live for real infra)
-    status.ts             Show converted vs unconverted
-    migrate.ts            Print step-by-step migration guide to stdout
+    classifier.ts         Tool-type vs service-type classification
   utils/
     output.ts             Pretty terminal output + --json flag
 ```
 
 ## Key Design Decisions
 
-- **Mappings are the product.** MCP tool schemas don't contain CLI commands. The curated JSON mapping files are hand-written data, not generated code.
-- **`wrapper_template` is bash, not structured data.** Each mapping has a hand-written bash case body. No DSL for shell variable references. This avoids the `$DATABASE_URL`-in-JSON ambiguity.
-- **Mapping-only for curated servers.** No MCP introspection needed when we have a mapping. Introspection is only for unknown servers.
-- **Output directly to `.claude/skills/`.** Claude Code reads skills from this path. No intermediate directory.
-- **Atomic config writes.** Disabling MCP entries writes to `.tmp` then `rename()`. If process dies mid-write, original config is intact.
-- **Single-file build.** `bun build --target=node` produces one 560KB JS file. Zero runtime deps for end users via `npx`.
+- **Skills are the product.** Hand-written markdown files that teach Claude CLI operations directly. No intermediate bash wrappers.
+- **Mappings drive pattern matching.** JSON mapping files are still used to identify which MCP server maps to which skill, but the skill content lives in markdown.
+- **_meta.md is the orchestrator.** A meta-skill that guides Claude through the entire MCP replacement flow — scan, match, verify, disable.
+- **Single-file build.** Skill markdown is imported as text and bundled into the JS output. Zero runtime file reads.
+- **Deprecated commands preserved.** Old convert/verify/status/migrate still work but emit warnings.
 
 ## Commands
 
 ```bash
-bun run src/cli.ts scan              # Dev: run directly
-bun run src/cli.ts convert supabase --keep
-bun run src/cli.ts verify --dry supabase
-bun test                             # 81 tests
+bun run src/cli.ts scan              # List MCP servers + skill availability
+bun run src/cli.ts install supabase  # Install one skill
+bun run src/cli.ts install --all     # Install all skills
+bun test                             # Tests
 bun run build                        # Build to dist/cli.js
-node dist/cli.js --help              # Test built version
 ```
 
 ## Testing
@@ -58,17 +64,19 @@ node dist/cli.js --help              # Test built version
 ```bash
 bun test                    # All tests
 bun test test/mappings/     # Mapping validation only
-bun test test/generate/     # Generator tests only
+bun test test/config/       # Config parser tests
+bun test test/commands/     # Command tests
 ```
 
-Tests use `bun:test`. Mapping validation checks all JSON files against `schema.json`. No external test dependencies.
+Tests use `bun:test`. No external test dependencies.
 
-## Adding a New Mapping
+## Adding a New Skill
 
-1. Create `src/mappings/{name}.json` following `schema.json`
-2. Add static import in `src/mappings/index.ts`
-3. Run `bun test test/mappings/validate.test.ts` to verify
-4. The `wrapper_template` field is the hand-written bash case body
+1. Create `src/skills/{name}.md` with frontmatter (name, trigger, replaces_mcp)
+2. Add text import in `src/commands/install.ts`
+3. Add to `SKILLS` map in `src/commands/install.ts`
+4. Ensure a matching mapping exists in `src/mappings/` for server pattern matching
+5. Run tests to verify
 
 ## Config Scopes (Claude Code)
 

@@ -1,6 +1,6 @@
 # forget-mcp
 
-Convert MCP servers into Skill documents + CLI wrappers. Kill context window overhead.
+AI operation guides that replace MCP servers with direct CLI usage. Kill context window overhead.
 
 [English](#the-problem) | [中文](#问题)
 
@@ -13,76 +13,66 @@ The deeper insight: most MCP servers are thin wrappers around CLI tools that alr
 ## The Fix
 
 ```
-Before: Claude -> MCP Server -> External System -> Data -> Claude
-After:  Claude -> Generate Command -> Bash Execute -> Result -> Claude
+Before: Claude -> MCP Server -> External System -> Data -> Claude  (30-60k tokens overhead)
+After:  Claude reads skill -> Runs CLI directly -> Result -> Claude  (< 1k tokens)
 ```
 
-forget-mcp converts MCP servers into Skill documents that teach Claude the CLI commands, plus thin bash wrappers for output truncation. No MCP server running, no tool schemas in context.
+forget-mcp installs skill files that teach Claude the CLI commands directly. No MCP server running, no tool schemas in context, no intermediate wrapper scripts.
 
 ## Quick Start
 
 ```bash
-# See what MCP servers you have
+# See what MCP servers you have and which skills are available
 npx forget-mcp scan
 
-# Convert a server to Skill + CLI wrapper
-npx forget-mcp convert supabase
+# Install a skill (replaces MCP with direct CLI usage)
+npx forget-mcp install supabase
 
-# Check the output
-npx forget-mcp verify --dry supabase
-
-# See migration status
-npx forget-mcp status
+# Install all available skills
+npx forget-mcp install --all
 ```
+
+After installing, Claude reads the skill and knows how to use `psql`/`gh`/`aws`/etc. directly. You can then disable the MCP server in your config to free context space.
 
 ## What It Does
 
 1. **Scans** your Claude Code MCP config (`~/.claude.json` root and project-scoped, `.mcp.json`, and legacy settings files)
-2. **Matches** servers against curated mappings (Supabase, GitHub, filesystem, AWS, Cloudflare)
-3. **Generates** a `SKILL.md` + `tools/{name}.sh` in `.claude/skills/{name}/`
-4. **Offers to disable** the MCP server entry so context is freed
+2. **Matches** servers against available skills (Supabase, GitHub, filesystem, AWS, Cloudflare)
+3. **Installs** skill files to `.claude/skills/forget-mcp/` — Claude reads these automatically
+4. **Includes** a meta-skill (`_meta.md`) that guides Claude through the MCP replacement process
 
-### Generated Output
+### What Gets Installed
 
 ```
-.claude/skills/supabase/
-  SKILL.md              # Operation mapping, prerequisites, error patterns
-  tools/supabase.sh     # Thin bash wrapper with output truncation
+.claude/skills/forget-mcp/
+  supabase.md     # psql commands, output handling, error patterns
+  github.md       # gh CLI commands for issues, PRs, search
+  _meta.md        # Guides Claude through scanning and disabling MCP servers
 ```
 
-**SKILL.md** teaches Claude which CLI command replaces each MCP tool:
+Each skill file teaches Claude:
+- Which CLI commands replace each MCP operation
+- How to handle output (truncation, formatting)
+- Prerequisites (tools to install, env vars to set)
+- Common errors and fixes
 
-| MCP Tool | CLI Command | Notes |
-|----------|-------------|-------|
-| execute_sql | `supabase.sh query <sql>` | CSV output. Add LIMIT N for large queries |
-| list_tables | `supabase.sh tables` | CSV output |
-| get_table_schema | `supabase.sh schema <table>` | Text output |
+## Available Skills
 
-**tools/supabase.sh** is a thin bash wrapper (~20 lines):
-
-```bash
-case "${1:-}" in
-  query)
-    psql "$DATABASE_URL" --csv -c "$2" | head -n "$MAX_LINES"
-    ;;
-  tables)
-    psql "$DATABASE_URL" --csv -c "SELECT ..." | head -n "$MAX_LINES"
-    ;;
-  # ...
-esac
-```
+| Skill | Replaces MCP | Uses CLI |
+|-------|-------------|----------|
+| supabase | Supabase MCP | `psql` + `supabase` CLI |
+| github | GitHub MCP | `gh` CLI |
+| filesystem | Filesystem MCP | Built-in shell commands |
+| aws | AWS MCP | `aws` CLI |
+| cloudflare | Cloudflare MCP | `wrangler` CLI |
 
 ## Commands
 
 | Command | Description |
 |---------|-------------|
-| `forget-mcp scan` | List MCP servers from Claude Code config |
-| `forget-mcp convert <server>` | Convert one server to Skill + CLI wrapper |
-| `forget-mcp convert --all` | Convert all servers with curated mappings |
-| `forget-mcp verify --dry <server>` | CI-safe check (tools installed, env vars set) |
-| `forget-mcp verify <server>` | Live check (executes commands against real infra) |
-| `forget-mcp status` | Show converted vs unconverted servers |
-| `forget-mcp migrate` | Print step-by-step migration guide |
+| `forget-mcp scan` | List MCP servers and show skill availability |
+| `forget-mcp install <server>` | Install a skill for one server |
+| `forget-mcp install --all` | Install all available skills |
 
 ### Flags
 
@@ -90,58 +80,17 @@ esac
 |------|-------------|
 | `--json` | Output as JSON (for scripting) |
 | `--global` | Write skills to `~/.claude/skills/` instead of `.claude/skills/` |
-| `--disable` | Auto-disable MCP entry after convert (no prompt) |
-| `--keep` | Don't prompt to disable MCP entry |
-| `--force` | Overwrite existing skills without prompting |
-
-## Curated Mappings
-
-Phase 1 includes 5 curated mappings:
-
-| Server | CLI Tool | Tools Mapped |
-|--------|----------|-------------|
-| Supabase | `psql` | 6 (query, tables, schema, extensions, migrations, migrate) |
-| GitHub | `gh` | 12 (issues, PRs, search, file contents, merge, diff) |
-| Filesystem | `ls`/`cat`/`find` | 9 (cat, ls, stat, find, tree, write, mkdir, mv, edit) |
-| AWS | `aws` | 7 (S3, Lambda, CloudFormation, STS) |
-| Cloudflare | `wrangler` | 9 (Workers, KV, R2, D1, DNS) |
-
-For servers without curated mappings, forget-mcp attempts MCP introspection and generates stub skills.
 
 ## How It Works
 
-### For curated servers (recommended)
-
 ```
-1. Parse config -> find server entry
-2. Lookup curated mapping (no MCP connection needed)
-3. Generate SKILL.md from mapping metadata
-4. Generate bash wrapper from mapping.wrapper_template
-5. Write to .claude/skills/{name}/
-6. Prompt to disable MCP entry
+1. scan     → Reads MCP config, matches servers to available skills
+2. install  → Copies skill markdown to .claude/skills/forget-mcp/
+3. Claude   → Reads skill files automatically, uses CLI commands directly
+4. You      → Disable the MCP server entry to free context space
 ```
 
-### For unknown servers (fallback)
-
-```
-1. Parse config -> find server entry
-2. No curated mapping found
-3. Start MCP server, call tools/list
-4. Generate stub SKILL.md (status: incomplete, needs manual mapping)
-5. Write to .claude/skills/{name}/
-```
-
-## Contributing a Mapping
-
-1. Create `src/mappings/{name}.json` following the JSON Schema in `src/mappings/schema.json`
-2. Add a static import in `src/mappings/index.ts`
-3. Run `bun test test/mappings/validate.test.ts` to verify
-
-Each mapping has two parts:
-- **`tools`**: metadata for SKILL.md (subcommand names, args, output format, guidance)
-- **`wrapper_template`**: hand-written bash case body for the wrapper script
-
-See existing mappings for examples.
+The `_meta.md` skill also teaches Claude how to do the entire replacement process itself — scanning config, verifying prerequisites, and disabling MCP entries.
 
 ## Development
 
@@ -153,14 +102,23 @@ bun install
 bun run src/cli.ts scan
 
 # Test
-bun test              # 78 tests
+bun test
 
 # Build for npm
-bun run build         # -> dist/cli.js (single file, ~560KB)
+bun run build         # -> dist/cli.js (single file, ~580KB)
 
 # Test built version
 node dist/cli.js --help
 ```
+
+## Contributing a Skill
+
+1. Create `src/skills/{name}.md` with frontmatter (`name`, `trigger`, `replaces_mcp`)
+2. Add a text import in `src/commands/install.ts`
+3. Ensure a matching server pattern exists in `src/mappings/`
+4. Run tests to verify
+
+See existing skill files for the format.
 
 ## License
 
@@ -172,7 +130,7 @@ MIT
 
 # forget-mcp (中文)
 
-把 MCP 服务器转换成 Skill 文档 + CLI 脚本，干掉上下文窗口的浪费。
+AI 操作指南，用直接的 CLI 命令替代 MCP 服务器，干掉上下文窗口的浪费。
 
 ## 问题
 
@@ -183,62 +141,66 @@ MCP 服务器会占用 AI 编码工具的大量上下文窗口。7-8 个服务�
 ## 解决方案
 
 ```
-之前：Claude -> MCP Server -> 外部系统 -> 数据 -> Claude
-之后：Claude -> 生成命令 -> Bash 执行 -> 结果 -> Claude
+之前：Claude -> MCP Server -> 外部系统 -> 数据 -> Claude  (3-6万 token 开销)
+之后：Claude 读 skill -> 直接跑 CLI -> 结果 -> Claude  (< 1k token)
 ```
 
-forget-mcp 把 MCP 服务器转换成 Skill 文档（教 Claude 用 CLI 命令）+ 轻量 bash 脚本（控制输出截断）。不需要运行 MCP 服务器，上下文里也没有工具 schema。
+forget-mcp 安装 skill 文件，直接教 Claude 用 CLI 命令操作。不需要运行 MCP 服务器，上下文里没有工具 schema，也没有中间脚本。
 
 ## 快速开始
 
 ```bash
-# 扫描你有哪些 MCP 服务器
+# 扫描你有哪些 MCP 服务器，哪些有可用的 skill
 npx forget-mcp scan
 
-# 把一个服务器转换成 Skill + CLI 脚本
-npx forget-mcp convert supabase
+# 安装一个 skill（用直接 CLI 替代 MCP）
+npx forget-mcp install supabase
 
-# 检查生成的输出
-npx forget-mcp verify --dry supabase
-
-# 查看迁移状态
-npx forget-mcp status
+# 安装所有可用 skill
+npx forget-mcp install --all
 ```
+
+安装后，Claude 会自动读取 skill 文件，直接使用 `psql`/`gh`/`aws` 等命令。然后你可以禁用 MCP 服务器配置来释放上下文空间。
 
 ## 它做了什么
 
-1. **扫描** Claude Code 的 MCP 配置（`~/.claude.json`、`.mcp.json` 及旧版 settings 文件）
-2. **匹配** 服务器到预置映射表（Supabase、GitHub、文件系统、AWS、Cloudflare）
-3. **生成** `SKILL.md` + `tools/{name}.sh` 到 `.claude/skills/{name}/`
-4. **提示禁用** MCP 服务器配置，释放上下文空间
+1. **扫描** Claude Code 的 MCP 配置（`~/.claude.json` 根级和项目级、`.mcp.json` 及旧版 settings 文件）
+2. **匹配** 服务器到可用 skill（Supabase、GitHub、文件系统、AWS、Cloudflare）
+3. **安装** skill 文件到 `.claude/skills/forget-mcp/`——Claude 会自动读取
+4. **包含** 元 skill（`_meta.md`）引导 Claude 完成 MCP 替换流程
 
-### 生成的输出
+### 安装的内容
 
 ```
-.claude/skills/supabase/
-  SKILL.md              # 操作映射、前置条件、错误处理
-  tools/supabase.sh     # 轻量 bash 脚本，带输出截断
+.claude/skills/forget-mcp/
+  supabase.md     # psql 命令、输出处理、错误模式
+  github.md       # gh CLI 操作 issues、PR、搜索
+  _meta.md        # 引导 Claude 扫描和禁用 MCP 服务器
 ```
 
-**SKILL.md** 教 Claude 用什么 CLI 命令替代每个 MCP 工具：
+每个 skill 文件教 Claude：
+- 用什么 CLI 命令替代每个 MCP 操作
+- 如何处理输出（截断、格式化）
+- 前置条件（需要安装的工具、环境变量）
+- 常见错误和修复方法
 
-| MCP 工具 | CLI 命令 | 说明 |
-|----------|---------|------|
-| execute_sql | `supabase.sh query <sql>` | CSV 输出，大查询加 LIMIT N |
-| list_tables | `supabase.sh tables` | CSV 输出 |
-| get_table_schema | `supabase.sh schema <table>` | 文本输出 |
+## 可用 Skill
+
+| Skill | 替代 MCP | 使用 CLI |
+|-------|---------|----------|
+| supabase | Supabase MCP | `psql` + `supabase` CLI |
+| github | GitHub MCP | `gh` CLI |
+| filesystem | 文件系统 MCP | 内置 shell 命令 |
+| aws | AWS MCP | `aws` CLI |
+| cloudflare | Cloudflare MCP | `wrangler` CLI |
 
 ## 命令
 
 | 命令 | 说明 |
 |------|------|
-| `forget-mcp scan` | 列出 Claude Code 配置中的 MCP 服务器 |
-| `forget-mcp convert <server>` | 转换一个服务器为 Skill + CLI 脚本 |
-| `forget-mcp convert --all` | 批量转换所有有映射的服务器 |
-| `forget-mcp verify --dry <server>` | CI 安全检查（工具是否安装、环境变量是否设置） |
-| `forget-mcp verify <server>` | 实际执行检查（需要真实凭据） |
-| `forget-mcp status` | 显示已转换 vs 未转换的服务器 |
-| `forget-mcp migrate` | 打印分步迁移指南 |
+| `forget-mcp scan` | 列出 MCP 服务器和 skill 可用情况 |
+| `forget-mcp install <server>` | 安装一个 skill |
+| `forget-mcp install --all` | 安装所有可用 skill |
 
 ### 参数
 
@@ -246,58 +208,6 @@ npx forget-mcp status
 |------|------|
 | `--json` | JSON 格式输出（方便脚本调用） |
 | `--global` | 写入 `~/.claude/skills/` 而非 `.claude/skills/` |
-| `--disable` | 转换后自动禁用 MCP 配置（不提示） |
-| `--keep` | 不提示禁用 MCP 配置 |
-| `--force` | 覆盖已有的 skill，不提示 |
-
-## 预置映射
-
-Phase 1 包含 5 个预置映射：
-
-| 服务器 | CLI 工具 | 映射工具数 |
-|--------|---------|-----------|
-| Supabase | `psql` | 6（query、tables、schema、extensions、migrations、migrate） |
-| GitHub | `gh` | 12（issues、PRs、search、file、merge、diff） |
-| 文件系统 | `ls`/`cat`/`find` | 9（cat、ls、stat、find、tree、write、mkdir、mv、edit） |
-| AWS | `aws` | 7（S3、Lambda、CloudFormation、STS） |
-| Cloudflare | `wrangler` | 9（Workers、KV、R2、D1、DNS） |
-
-没有预置映射的服务器，forget-mcp 会尝试 MCP 自省（introspection）并生成 stub skill。
-
-## 工作原理
-
-### 有预置映射的服务器（推荐）
-
-```
-1. 解析配置 -> 找到服务器条目
-2. 查找预置映射（不需要连接 MCP）
-3. 从映射元数据生成 SKILL.md
-4. 从 wrapper_template 生成 bash 脚本
-5. 写入 .claude/skills/{name}/
-6. 提示是否禁用 MCP 配置
-```
-
-### 没有映射的服务器（回退方案）
-
-```
-1. 解析配置 -> 找到服务器条目
-2. 没找到预置映射
-3. 启动 MCP 服务器，调用 tools/list
-4. 生成 stub SKILL.md（标记为 incomplete，需要手动映射）
-5. 写入 .claude/skills/{name}/
-```
-
-## 贡献映射
-
-1. 按照 `src/mappings/schema.json` 的 JSON Schema 创建 `src/mappings/{name}.json`
-2. 在 `src/mappings/index.ts` 中添加静态导入
-3. 运行 `bun test test/mappings/validate.test.ts` 验证
-
-每个映射有两部分：
-- **`tools`**：SKILL.md 的元数据（子命令名、参数、输出格式、使用提示）
-- **`wrapper_template`**：手写的 bash case 分支体
-
-参考已有的映射文件。
 
 ## 开发
 
@@ -309,10 +219,10 @@ bun install
 bun run src/cli.ts scan
 
 # 测试
-bun test              # 78 个测试
+bun test
 
 # 构建 npm 包
-bun run build         # -> dist/cli.js（单文件，约 560KB）
+bun run build         # -> dist/cli.js（单文件，约 580KB）
 
 # 测试构建产物
 node dist/cli.js --help

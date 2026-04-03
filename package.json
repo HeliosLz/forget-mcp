@@ -1,7 +1,7 @@
 {
   "name": "forget-mcp",
-  "version": "0.2.1",
-  "description": "Convert MCP servers into Skill documents + CLI wrappers. Kill context window overhead.",
+  "version": "0.3.0",
+  "description": "AI operation guides that replace MCP servers with direct CLI usage. Kill context window overhead.",
   "type": "module",
   "bin": {
     "forget-mcp": "dist/cli.js"
