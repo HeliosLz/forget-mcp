@@ -36,7 +36,7 @@ export function findMapping(
     for (const pattern of mapping.server_patterns) {
       const p = pattern.toLowerCase();
       for (const candidate of candidates) {
-        if (candidate.includes(p) || p.includes(candidate)) {
+        if (candidate.includes(p)) {
           return mapping;
         }
       }
@@ -55,7 +55,7 @@ export function loadMapping(serverName: string): CuratedMapping | null {
     ALL_MAPPINGS.find((m) =>
       m.server_patterns.some((p) => {
         const pl = p.toLowerCase();
-        return pl.includes(name) || name.includes(pl);
+        return name.includes(pl);
       })
     ) || null
   );
