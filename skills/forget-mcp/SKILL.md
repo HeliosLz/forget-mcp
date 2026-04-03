@@ -20,27 +20,27 @@ When the user wants to:
 Read the user's MCP config from these locations (in precedence order):
 
 1. `~/.claude.json` → `projects[cwd].mcpServers` (local scope)
-2. `.claude/settings.local.json` → `mcpServers` (local legacy)
-3. `.mcp.json` → `mcpServers` (project scope)
-4. `~/.claude.json` → root `mcpServers` (user scope)
-5. `~/.claude.json` → `projects[home].mcpServers` (user scope)
-6. `~/.claude/settings.json` → `mcpServers` (user legacy)
+2. `.mcp.json` → `mcpServers` (project scope)
+3. `~/.claude.json` → root `mcpServers` (user scope)
+4. `~/.claude.json` → `projects[home].mcpServers` (user scope)
+
+Note: older setups may also have servers in `.claude/settings.local.json` or `~/.claude/settings.json`.
 
 List all servers found with their scope.
 
 ## Step 2: Match Available Skills
 
-Check `.claude/skills/forget-mcp/` for installed skill files.
+Check `.claude/skills/` for installed skill directories (each contains a `SKILL.md`).
 
 Available replacements:
 
 | MCP Server Pattern | Skill | Replaces With |
 |--------------------|-------|---------------|
-| supabase, @supabase/* | supabase.md | `psql` + `supabase` CLI |
-| github, @modelcontextprotocol/server-github | github.md | `gh` CLI |
-| filesystem, @modelcontextprotocol/server-filesystem | filesystem.md | Built-in shell commands |
-| aws, @aws/mcp-server | aws.md | `aws` CLI |
-| cloudflare, @cloudflare/mcp-server-cloudflare | cloudflare.md | `wrangler` CLI |
+| supabase, @supabase/* | supabase | `psql` + `supabase` CLI |
+| github, @modelcontextprotocol/server-github | github | `gh` CLI |
+| filesystem, @modelcontextprotocol/server-filesystem | filesystem | Built-in shell commands |
+| aws, @aws/mcp-server | aws | `aws` CLI |
+| cloudflare, @cloudflare/mcp-server-cloudflare | cloudflare | `wrangler` CLI |
 
 Tell the user which servers have replacements and which don't.
 

@@ -8,24 +8,24 @@ Skills that teach Claude to analyze MCP configurations, identify which servers c
 
 ```
 skills/
-  supabase.md       # psql operations
-  github.md         # gh CLI operations
-  filesystem.md     # Built-in shell commands
-  aws.md            # aws CLI operations
-  cloudflare.md     # wrangler CLI operations
-  _meta.md          # Orchestrator: guides Claude through MCP replacement
+  forget-mcp/SKILL.md   # Orchestrator: guides Claude through MCP replacement
+  supabase/SKILL.md      # psql operations
+  github/SKILL.md        # gh CLI operations
+  filesystem/SKILL.md    # Built-in shell commands
+  aws/SKILL.md           # aws CLI operations
+  cloudflare/SKILL.md    # wrangler CLI operations
 ```
 
 ## How It Works
 
-1. User copies `skills/` to `.claude/skills/forget-mcp/`
-2. Claude reads the skill files automatically
-3. `_meta.md` guides Claude to scan MCP config, match servers to skills, verify prerequisites, and disable MCP entries
+1. User copies `skills/*` to `.claude/skills/`
+2. Claude reads the skill directories automatically
+3. `forget-mcp/SKILL.md` guides Claude to scan MCP config, match servers to skills, verify prerequisites, and disable MCP entries
 4. Individual skills teach Claude the exact CLI commands for each operation
 
 ## Adding a New Skill
 
-1. Create `skills/{name}.md` with frontmatter:
+1. Create `skills/{name}/SKILL.md` with frontmatter:
    ```yaml
    ---
    name: {name}
@@ -34,19 +34,17 @@ skills/
    ---
    ```
 2. Include sections: Prerequisites, Operations (table), Output Handling, Common Errors
-3. Update the mapping table in `_meta.md`
+3. Update the mapping table in `forget-mcp/SKILL.md`
 
 ## Config Scopes (Claude Code)
 
-| Scope | Canonical location | Legacy fallback |
-|-------|-------------------|-----------------|
-| Local (default) | `~/.claude.json` → `projects[cwd].mcpServers` | `.claude/settings.local.json` |
-| User | `~/.claude.json` → root `mcpServers` | `~/.claude/settings.json` |
-| User | `~/.claude.json` → `projects[home].mcpServers` | `~/.claude/settings.json` |
-| Project | `.mcp.json` | — |
+| Scope | Canonical location |
+|-------|-------------------|
+| Local (default) | `~/.claude.json` → `projects[cwd].mcpServers` |
+| Project | `.mcp.json` → `mcpServers` |
+| User | `~/.claude.json` → root `mcpServers` |
+| User | `~/.claude.json` → `projects[home].mcpServers` |
 
-Precedence: local > project > user. Within user scope: root `mcpServers` > `projects[home]` > legacy settings files.
+Precedence: local > project > user. Within user scope: root `mcpServers` > `projects[home]`.
 
-## Legacy CLI
-
-The `src/` directory contains a legacy CLI tool (`npx forget-mcp`) from earlier versions. It is no longer the primary distribution method. The skill files in `skills/` are the product.
+Older setups may also have servers in `.claude/settings.local.json` or `~/.claude/settings.json`.
